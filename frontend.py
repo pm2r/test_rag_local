@@ -2,9 +2,9 @@ import streamlit as st
 import requests
 
 # L'URL del backend verrà fornito da ngrok quando esegui il backend su Colab
-BACKEND_URL = "https://5594-34-142-100-87.ngrok-free.app"  # Sostituisci con l'URL effettivo
+BACKEND_URL = "https://1c72-34-142-100-87.ngrok-free.app"  # Sostituisci con l'URL effettivo
 
-st.title("RAG Demo con Ollama e Llama")
+st.title("RAG Demo con Ollama e Llama 3.1 by Paolo Risso")
 
 user_question = st.text_input("Inserisci la tua domanda:")
 
@@ -23,3 +23,4 @@ if st.button("Invia"):
                 st.error("Si è verificato un errore nella richiesta al backend.")
     else:
         st.warning("Per favore, inserisci una domanda.")
+
