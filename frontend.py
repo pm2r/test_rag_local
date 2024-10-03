@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
 
-# L'URL del backend verrà fornito da ngrok quando esegui il backend su Colab
-BACKEND_URL = "https://1c72-34-142-100-87.ngrok-free.app"  # Sostituisci con l'URL effettivo
+# L'URL del backend fornito da ngrok quando esegui il backend su Colab
+BACKEND_URL = "https://your-ngrok-url.ngrok.io"  # Sostituisci con l'URL effettivo fornito da ngrok
 
 st.title("RAG Demo con Ollama e Llama 3.1 by Paolo Risso")
 
@@ -44,12 +44,13 @@ with col1:
             add_message("user", user_question)
             with st.spinner("Elaborazione in corso..."):
                 response_data = send_query(user_question)
-                if response_data:
+                if response_data and "answer" in response_data:
                     add_message("assistant", response_data["answer"])
                     # Visualizza le fonti con un font più piccolo
                     with st.expander("Mostra fonti"):
                         for i, source in enumerate(response_data["sources"]):
-                            st.markdown(f"<small>Fonte {i+1}: {source}</small>", unsafe_allow_html=True)
+                            st.markdown(f"<small>Fonte {i+1}: {source['content']}</small>", unsafe_allow_html=True)
+                            st.json(source['metadata'])
                 else:
                     add_message("system", "Si è verificato un errore nella richiesta al backend.")
         else:
