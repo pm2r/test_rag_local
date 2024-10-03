@@ -16,13 +16,31 @@ def add_message(role, content):
 
 # Funzione per inviare una query al backend
 def send_query(question):
-    chat_history = [
-        {"role": msg["role"], "content": msg["content"]}
-        for msg in st.session_state.chat_history
-        if msg["role"] in ["user", "assistant"]
-    ]
-    response = requests.post(f"{BACKEND_URL}/query", json={"question": question, "chat_history": chat_history})
-    return response.json() if response.status_code == 200 else None
+    try:
+        chat_history = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in st.session_state.chat_history
+            if msg["role"] in ["user", "assistant"]
+        ]
+        
+        response = requests.post(
+            f"{BACKEND_URL}/query", 
+            json={"question": question, "chat_history": chat_history},
+            timeout=30  # Aggiunto un timeout di 30 secondi
+        )
+        
+        response.raise_for_status()  # Solleva un'eccezione per risposte non 2xx
+        
+        return response.json()
+    except requests.RequestException as e:
+        st.error(f"Errore di connessione al backend: {str(e)}")
+        return None
+    except ValueError as e:
+        st.error(f"Errore nella decodifica della risposta JSON: {str(e)}")
+        return None
+    except Exception as e:
+        st.error(f"Errore imprevisto: {str(e)}")
+        return None
 
 # Funzione per resettare la conversazione
 def reset_conversation():
