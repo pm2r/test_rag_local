@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # L'URL del backend fornito da ngrok quando esegui il backend su Colab
-BACKEND_URL = "https://your-ngrok-url.ngrok.io"  # Sostituisci con l'URL effettivo fornito da ngrok
+BACKEND_URL = "https://6c6a-34-89-97-149.ngrok-free.app"  # Sostituisci con l'URL effettivo fornito da ngrok
 
 st.title("RAG Demo con Ollama e Llama 3.1 by Paolo Risso")
 
@@ -23,6 +23,7 @@ def send_query(question):
 def reset_conversation():
     st.session_state.chat_history = []
     requests.post(f"{BACKEND_URL}/reset")
+    st.rerun()  # Utilizziamo st.rerun() invece di st.experimental_rerun()
 
 # Visualizza la chat history
 for message in st.session_state.chat_history:
@@ -53,13 +54,13 @@ with col1:
                             st.json(source['metadata'])
                 else:
                     add_message("system", "Si è verificato un errore nella richiesta al backend.")
+            st.rerun()  # Aggiorniamo la pagina dopo aver aggiunto un nuovo messaggio
         else:
             st.warning("Per favore, inserisci una domanda.")
 
 with col2:
     if st.button("Reset Conversazione"):
         reset_conversation()
-        st.experimental_rerun()
 
-# Scorri automaticamente alla fine della chat
-st.markdown('<script>window.scrollTo(0,document.body.scrollHeight);</script>', unsafe_allow_html=True)
+# Rimuoviamo lo script di scorrimento automatico poiché non è più necessario
+# Streamlit gestirà automaticamente lo scorrimento
