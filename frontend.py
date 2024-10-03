@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # L'URL del backend fornito da ngrok quando esegui il backend su Colab
-BACKEND_URL = "https://6c6a-34-89-97-149.ngrok-free.app"  # Sostituisci con l'URL effettivo fornito da ngrok
+BACKEND_URL = "https://5dcc-34-89-97-149.ngrok-free.app"  # Sostituisci con l'URL effettivo fornito da ngrok
 
 st.title("RAG Demo con Ollama e Llama 3.1 by Paolo Risso")
 
@@ -16,7 +16,12 @@ def add_message(role, content):
 
 # Funzione per inviare una query al backend
 def send_query(question):
-    response = requests.post(f"{BACKEND_URL}/query", json={"question": question, "chat_history": st.session_state.chat_history})
+    chat_history = [
+        {"role": msg["role"], "content": msg["content"]}
+        for msg in st.session_state.chat_history
+        if msg["role"] in ["user", "assistant"]
+    ]
+    response = requests.post(f"{BACKEND_URL}/query", json={"question": question, "chat_history": chat_history})
     return response.json() if response.status_code == 200 else None
 
 # Funzione per resettare la conversazione
