@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # L'URL del backend fornito da ngrok quando esegui il backend su Colab
-BACKEND_URL = "https://61c9-34-147-163-163.ngrok-free.app"  # Sostituisci con l'URL effettivo fornito da ngrok
+BACKEND_URL = "https://7e1a-34-147-163-163.ngrok-free.app"  # Sostituisci con l'URL effettivo fornito da ngrok
 
 st.title("RAG Demo con Ollama e Llama 3.1 by Paolo Risso")
 
