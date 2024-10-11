@@ -4,7 +4,7 @@ import requests
 # L'URL del backend fornito da ngrok quando esegui il backend su Colab
 BACKEND_URL = "https://50d3-34-105-129-159.ngrok-free.app"  # Sostituisci con l'URL effettivo fornito da ngrok
 
-st.title("RAG Demo con Ollama e Llama 3.1 by Paolo Risso")
+st.title("RAG Demo con Ollama e Llama 3.1 by Paolo Risso ----")
 
 # Inizializza la chat history nella sessione di Streamlit se non esiste
 if 'chat_history' not in st.session_state:
