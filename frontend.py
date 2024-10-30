@@ -1,4 +1,3 @@
-```python
 # frontend.py
 
 import streamlit as st
@@ -30,7 +29,7 @@ BACKEND_URL = st.secrets.get("BACKEND_URL", "https://your-ngrok-url.ngrok-free.a
 # Configurazione Pagina e Stile
 # -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="CRM GPT by Customer Knowledge",
+    page_title="CRM GPT by Paolo",
     page_icon="🏦",
     layout="wide"
 )
@@ -203,8 +202,8 @@ def reset_conversation():
 # Header principale
 st.markdown("""
     <div class="main-header">
-        <div class="main-title">CRM GPT by Customer Knowledge</div>
-        <div class="subtitle">Intelligent Banking Assistant</div>
+        <div class="main-title">CRM GPT by Paolo</div>
+        <div class="subtitle">Intelligent Marketing Assistant</div>
     </div>
 """, unsafe_allow_html=True)
 
@@ -310,7 +309,7 @@ with col2:
 # Footer
 st.markdown("""
     <div class="footer">
-        <p>Powered by Advanced AI • Customer Knowledge</p>
+        <p>Powered by Advanced AI • by Paolo</p>
     </div>
 """, unsafe_allow_html=True)
 
