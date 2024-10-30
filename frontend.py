@@ -1,9 +1,10 @@
+# frontend.py
+
 import streamlit as st
 import requests
 import logging
 import sys
 from datetime import datetime
-import json
 
 # Configurazione logging
 logging.basicConfig(
@@ -16,220 +17,228 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configurazione Streamlit
+# L'URL del backend fornito da ngrok quando esegui il backend su Colab
+BACKEND_URL = st.secrets.get("BACKEND_URL", "https://your-ngrok-url.ngrok-free.app")
+
+# Configurazione pagina
 st.set_page_config(
     page_title="Business Intelligence Assistant",
     page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# Configurazione backend
-BACKEND_URL = st.secrets.get("BACKEND_URL", "https://your-ngrok-url.ngrok-free.app")
-
-# Stili CSS personalizzati
+# Stili CSS
 st.markdown("""
     <style>
-    .stAlert {
-        background-color: #f0f2f6;
-        border: 1px solid #e0e2e6;
-        padding: 1rem;
-        border-radius: 0.5rem;
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 2rem;
     }
-    .sql-query {
-        background-color: #1e1e1e;
-        color: #d4d4d4;
-        padding: 1rem;
-        border-radius: 0.3rem;
-        font-family: 'Courier New', monospace;
+    .model-info {
+        font-size: 0.8rem;
+        color: #666;
+        margin-bottom: 1rem;
     }
-    .data-table {
+    .query-mode {
         margin-top: 1rem;
+        padding: 1rem;
+        background-color: #f0f2f6;
+        border-radius: 0.5rem;
     }
     </style>
     """, unsafe_allow_html=True)
 
-class AssistantInterface:
-    def __init__(self):
-        self.initialize_session_state()
-        
-    def initialize_session_state(self):
-        """Inizializza o resetta lo stato della sessione"""
-        if 'chat_history' not in st.session_state:
-            st.session_state.chat_history = []
-        if 'current_mode' not in st.session_state:
-            st.session_state.current_mode = "hybrid"  # hybrid, rag, sql
-        if 'error_count' not in st.session_state:
-            st.session_state.error_count = 0
+# Inizializzazione stato sessione
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+if 'current_model' not in st.session_state:
+    st.session_state.current_model = "llama3:70b"
+if 'query_mode' not in st.session_state:
+    st.session_state.query_mode = "python"
 
-    def add_message(self, role, content, metadata=None):
-        """Aggiunge un messaggio alla chat history con metadata opzionale"""
-        message = {
-            "role": role,
-            "content": content,
-            "timestamp": datetime.now().isoformat(),
-            "metadata": metadata or {}
-        }
-        st.session_state.chat_history.append(message)
-        logger.info(f"Added message: {role} - {content[:100]}...")
+def add_message(role, content, metadata=None):
+    """Aggiunge un messaggio alla chat history"""
+    message = {
+        "role": role,
+        "content": content,
+        "timestamp": datetime.now().isoformat(),
+        "metadata": metadata or {}
+    }
+    st.session_state.chat_history.append(message)
+    logger.info(f"Added {role} message: {content[:100]}...")
 
-    def send_query(self, question, mode=None):
-        """Invia una query al backend con gestione errori avanzata"""
-        try:
-            mode = mode or st.session_state.current_mode
-            chat_history = [
-                {"role": msg["role"], "content": msg["content"]}
-                for msg in st.session_state.chat_history
-                if msg["role"] in ["user", "assistant"]
-            ]
-
-            payload = {
-                "question": question,
-                "chat_history": chat_history,
-                "mode": mode
-            }
-
-            logger.debug(f"Sending request to backend: {payload}")
-            
-            response = requests.post(
-                f"{BACKEND_URL}/query",
-                json=payload,
-                timeout=60  # Aumentato timeout per query complesse
-            )
-            
-            if response.status_code != 200:
-                logger.error(f"Backend error: {response.status_code} - {response.text}")
-                raise Exception(f"Backend returned status code: {response.status_code}")
-
-            result = response.json()
-            logger.info("Received successful response from backend")
-            st.session_state.error_count = 0  # Reset error count on success
-            return result
-
-        except requests.exceptions.Timeout:
-            logger.error("Request timeout")
-            self.handle_error("Request timed out. Please try again.")
-        except requests.exceptions.ConnectionError:
-            logger.error("Connection error")
-            self.handle_error("Could not connect to backend. Please check connection.")
-        except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
-            self.handle_error(f"An unexpected error occurred: {str(e)}")
-        
-        return None
-
-    def handle_error(self, error_message):
-        """Gestisce gli errori con retry automatico e fallback"""
-        st.session_state.error_count += 1
-        if st.session_state.error_count >= 3:
-            self.add_message("system", "Multiple errors occurred. Switching to fallback mode.")
-            # Implementare logica di fallback
-        st.error(error_message)
-
-    def reset_conversation(self):
-        """Resetta la conversazione e notifica il backend"""
-        try:
-            response = requests.post(f"{BACKEND_URL}/reset")
-            if response.status_code == 200:
-                self.initialize_session_state()
-                logger.info("Conversation reset successful")
-                st.success("Conversation reset successfully")
-            else:
-                logger.warning("Backend reset failed but proceeding with frontend reset")
-                self.initialize_session_state()
-        except Exception as e:
-            logger.error(f"Error during reset: {str(e)}")
-            self.initialize_session_state()
-        st.rerun()
-
-    def render_message(self, message):
-        """Renderizza un messaggio della chat con formattazione appropriata"""
-        role = message["role"]
-        content = message["content"]
-        metadata = message.get("metadata", {})
-
-        if role == "user":
-            st.write(f"👤 **You**: {content}")
-        elif role == "assistant":
-            st.write(f"🤖 **Assistant**: {content}")
-            
-            # Visualizza query SQL se presente
-            if "sql_query" in metadata:
-                with st.expander("Show SQL Query"):
-                    st.code(metadata["sql_query"], language="sql")
-            
-            # Visualizza dati se presenti
-            if "data" in metadata:
-                with st.expander("Show Data"):
-                    st.dataframe(metadata["data"])
-            
-            # Visualizza fonti RAG se presenti
-            if "sources" in metadata:
-                with st.expander("Show Sources"):
-                    for src in metadata["sources"]:
-                        st.markdown(f"**Source**: {src['content']}")
-                        if "metadata" in src:
-                            st.json(src["metadata"])
-        
-        elif role == "system":
-            st.write(f"ℹ️ **System**: {content}")
-
-    def render_interface(self):
-        """Renderizza l'interfaccia utente principale"""
-        st.title("🤖 Business Intelligence Assistant")
-        
-        # Sidebar per configurazioni
-        with st.sidebar:
-            st.header("Settings")
-            mode = st.selectbox(
-                "Query Mode",
-                ["hybrid", "sql", "rag"],
-                index=["hybrid", "sql", "rag"].index(st.session_state.current_mode)
-            )
-            if mode != st.session_state.current_mode:
-                st.session_state.current_mode = mode
-                logger.info(f"Mode changed to: {mode}")
-
-        # Display chat history
-        for message in st.session_state.chat_history:
-            self.render_message(message)
-
-        # Input utente
-        user_question = st.text_input("Ask a business question:", key="user_input")
-
-        # Bottoni azione
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Send", type="primary"):
-                if user_question:
-                    self.add_message("user", user_question)
-                    with st.spinner("Processing your question..."):
-                        response_data = self.send_query(user_question)
-                        if response_data:
-                            self.add_message(
-                                "assistant",
-                                response_data["answer"],
-                                metadata={
-                                    "sql_query": response_data.get("sql_query"),
-                                    "data": response_data.get("data"),
-                                    "sources": response_data.get("sources")
-                                }
-                            )
-                    st.rerun()
-                else:
-                    st.warning("Please enter a question.")
-
-        with col2:
-            if st.button("Reset Conversation"):
-                self.reset_conversation()
-
-def main():
+def send_query(question):
+    """Invia una query al backend"""
     try:
-        assistant = AssistantInterface()
-        assistant.render_interface()
+        chat_history = [
+            {"role": msg["role"], "content": msg["content"]}
+            for msg in st.session_state.chat_history
+            if msg["role"] in ["user", "assistant"]
+        ]
+        
+        payload = {
+            "question": question,
+            "chat_history": chat_history,
+            "model": st.session_state.current_model,
+            "mode": st.session_state.query_mode
+        }
+        
+        logger.debug(f"Sending request to backend: {payload}")
+        
+        response = requests.post(
+            f"{BACKEND_URL}/query",
+            json=payload,
+            timeout=60
+        )
+        
+        if response.status_code != 200:
+            logger.error(f"Backend error: {response.status_code} - {response.text}")
+            raise Exception(f"Backend returned status code: {response.status_code}")
+            
+        return response.json()
+    
+    except requests.exceptions.Timeout:
+        logger.error("Request timeout")
+        st.error("Request timed out. Please try again.")
+    except requests.exceptions.ConnectionError:
+        logger.error("Connection error")
+        st.error("Could not connect to backend. Please check connection.")
     except Exception as e:
-        logger.error(f"Critical error in main: {str(e)}")
-        st.error("A critical error occurred. Please refresh the page.")
+        logger.error(f"Unexpected error: {str(e)}")
+        st.error(f"An unexpected error occurred: {str(e)}")
+    
+    return None
 
-if __name__ == "__main__":
-    main()
+def reset_conversation():
+    """Resetta la conversazione"""
+    try:
+        response = requests.post(f"{BACKEND_URL}/reset")
+        if response.status_code == 200:
+            st.session_state.chat_history = []
+            logger.info("Conversation reset successful")
+            st.success("Conversation reset successfully")
+        else:
+            logger.warning("Backend reset failed")
+            st.warning("Backend reset failed, but chat history cleared locally")
+            st.session_state.chat_history = []
+    except Exception as e:
+        logger.error(f"Error during reset: {str(e)}")
+        st.error(f"Error during reset: {str(e)}")
+    st.rerun()
+
+# Sidebar con configurazioni
+with st.sidebar:
+    st.header("Settings")
+    
+    # Selezione modello LLM
+    selected_model = st.selectbox(
+        "Select LLM Model",
+        [
+            "llama3:70b",
+            "mixtral:8x7b",
+            "llama3.1:70b",
+            "mistral-nemo"
+        ],
+        index=["llama3:70b", "mixtral:8x7b", "llama3.1:70b", "mistral-nemo"].index(st.session_state.current_model)
+    )
+    
+    # Informazioni sul modello
+    model_descriptions = {
+        "llama3:70b": "High performance general model",
+        "mixtral:8x7b": "Efficient analytical model",
+        "llama3.1:70b": "Enhanced reasoning model",
+        "mistral-nemo": "Business analytics specialist"
+    }
+    st.markdown(f"<div class='model-info'>{model_descriptions[selected_model]}</div>", unsafe_allow_html=True)
+    
+    # Selezione modalità query
+    query_mode = st.selectbox(
+        "Query Mode",
+        ["python", "sql"],
+        index=0 if st.session_state.query_mode == "python" else 1
+    )
+    
+    # Applica configurazioni
+    if st.button("Apply Settings"):
+        if selected_model != st.session_state.current_model or query_mode != st.session_state.query_mode:
+            response = requests.post(
+                f"{BACKEND_URL}/config",
+                json={"model": selected_model, "mode": query_mode}
+            )
+            if response.status_code == 200:
+                st.session_state.current_model = selected_model
+                st.session_state.query_mode = query_mode
+                st.success("Settings updated successfully")
+                logger.info(f"Settings updated - Model: {selected_model}, Mode: {query_mode}")
+            else:
+                st.error("Failed to update settings")
+                logger.error("Failed to update settings")
+
+# Main content
+st.markdown("<h1 class='main-header'>Business Intelligence Assistant</h1>", unsafe_allow_html=True)
+
+# Display current settings
+st.markdown(f"""
+    <div class='query-mode'>
+        Current Settings:
+        - Model: {st.session_state.current_model}
+        - Mode: {st.session_state.query_mode}
+    </div>
+    """, unsafe_allow_html=True)
+
+# Display chat history
+for message in st.session_state.chat_history:
+    role = message["role"]
+    content = message["content"]
+    metadata = message.get("metadata", {})
+
+    if role == "user":
+        st.write(f"👤 **You**: {content}")
+    elif role == "assistant":
+        st.write(f"🤖 **Assistant**: {content}")
+        
+        if "query" in metadata:
+            with st.expander(f"Show {metadata['query_type'].upper()} Query"):
+                st.code(metadata["query"], language=metadata["query_type"])
+        
+        if "data" in metadata:
+            with st.expander("Show Data"):
+                st.dataframe(metadata["data"])
+    
+    elif role == "system":
+        st.write(f"ℹ️ **System**: {content}")
+
+# Input utente
+user_question = st.text_input("Ask your question:", key="user_input")
+
+# Buttons
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("Send", type="primary"):
+        if user_question:
+            add_message("user", user_question)
+            with st.spinner("Processing your question..."):
+                response = send_query(user_question)
+                if response:
+                    add_message(
+                        "assistant",
+                        response["answer"],
+                        metadata=response.get("metadata", {})
+                    )
+            st.rerun()
+        else:
+            st.warning("Please enter a question.")
+
+with col2:
+    if st.button("Reset Conversation"):
+        reset_conversation()
+
+# Footer
+st.markdown("---")
+st.markdown(
+    """<div style='text-align: center; color: #666;'>
+    Powered by Ollama LLMs • SQL and Python Analysis
+    </div>""",
+    unsafe_allow_html=True
+)
