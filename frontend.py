@@ -1,3 +1,4 @@
+```python
 # frontend.py
 
 import streamlit as st
@@ -6,7 +7,9 @@ import logging
 import sys
 from datetime import datetime
 
-# Configurazione logging
+# -----------------------------------------------------------------------------
+# Configurazione Base Logging
+# -----------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -17,39 +20,116 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# L'URL del backend fornito da ngrok quando esegui il backend su Colab
+# -----------------------------------------------------------------------------
+# Configurazione Connessione Backend
+# -----------------------------------------------------------------------------
+# Sostituire con il tuo URL ngrok
 BACKEND_URL = st.secrets.get("BACKEND_URL", "https://your-ngrok-url.ngrok-free.app")
 
-# Configurazione pagina
+# -----------------------------------------------------------------------------
+# Configurazione Pagina e Stile
+# -----------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Business Intelligence Assistant",
-    page_icon="🤖",
+    page_title="CRM GPT by Customer Knowledge",
+    page_icon="🏦",
     layout="wide"
 )
 
-# Stili CSS
+# Stili CSS - Personalizzabili per il brand
+# Modificare i colori qui per adattarli al proprio brand
 st.markdown("""
     <style>
+    /* Colori principali - Modificare questi valori per cambiare il tema */
+    :root {
+        --primary-color: #25367b;        /* Colore principale */
+        --primary-light: #3e4d96;        /* Variante chiara del principale */
+        --background-light: #f5f6f8;     /* Sfondo chiaro */
+        --text-primary: #333333;         /* Testo principale */
+        --text-light: #ffffff;           /* Testo chiaro */
+        --border-color: #e6e6e6;         /* Colore bordi */
+    }
+
+    /* Header principale */
     .main-header {
+        background-color: var(--primary-color);
+        color: var(--text-light);
+        padding: 2rem;
+        border-radius: 0;
+        margin: -1rem -1rem 2rem -1rem;
+        text-align: center;
+    }
+
+    .main-title {
         font-size: 2.5rem;
-        font-weight: bold;
-        margin-bottom: 2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
     }
-    .model-info {
-        font-size: 0.8rem;
-        color: #666;
-        margin-bottom: 1rem;
+
+    .subtitle {
+        font-size: 1.2rem;
+        opacity: 0.9;
     }
-    .query-mode {
-        margin-top: 1rem;
+
+    /* Personalizzazione sidebar */
+    .css-1d391kg {
+        background-color: var(--background-light);
+    }
+
+    /* Stile pulsanti */
+    .stButton>button {
+        background-color: var(--primary-color);
+        color: var(--text-light);
+        border-radius: 20px;
+        padding: 0.5rem 2rem;
+        border: none;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+    }
+
+    .stButton>button:hover {
+        background-color: var(--primary-light);
+    }
+
+    /* Container messaggi chat */
+    .chat-message {
         padding: 1rem;
-        background-color: #f0f2f6;
-        border-radius: 0.5rem;
+        border-radius: 5px;
+        margin-bottom: 1rem;
+        border-left: 4px solid var(--primary-color);
+    }
+
+    .user-message {
+        background-color: var(--background-light);
+    }
+
+    .assistant-message {
+        background-color: var(--text-light);
+        border: 1px solid var(--border-color);
+    }
+
+    /* Pannello impostazioni */
+    .settings-panel {
+        background-color: var(--text-light);
+        padding: 1.5rem;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-primary);
+        border-top: 1px solid var(--border-color);
+        margin-top: 2rem;
     }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# Inizializzazione stato sessione
+# -----------------------------------------------------------------------------
+# Gestione Stato Applicazione
+# -----------------------------------------------------------------------------
+# Inizializzazione stati se non esistono
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'current_model' not in st.session_state:
@@ -57,8 +137,11 @@ if 'current_model' not in st.session_state:
 if 'query_mode' not in st.session_state:
     st.session_state.query_mode = "python"
 
+# -----------------------------------------------------------------------------
+# Funzioni Utility
+# -----------------------------------------------------------------------------
 def add_message(role, content, metadata=None):
-    """Aggiunge un messaggio alla chat history"""
+    """Aggiunge un messaggio alla cronologia della chat"""
     message = {
         "role": role,
         "content": content,
@@ -69,7 +152,7 @@ def add_message(role, content, metadata=None):
     logger.info(f"Added {role} message: {content[:100]}...")
 
 def send_query(question):
-    """Invia una query al backend"""
+    """Gestisce l'invio delle query al backend"""
     try:
         chat_history = [
             {"role": msg["role"], "content": msg["content"]}
@@ -93,75 +176,67 @@ def send_query(question):
         )
         
         if response.status_code != 200:
-            logger.error(f"Backend error: {response.status_code} - {response.text}")
             raise Exception(f"Backend returned status code: {response.status_code}")
             
         return response.json()
     
-    except requests.exceptions.Timeout:
-        logger.error("Request timeout")
-        st.error("Request timed out. Please try again.")
-    except requests.exceptions.ConnectionError:
-        logger.error("Connection error")
-        st.error("Could not connect to backend. Please check connection.")
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        st.error(f"An unexpected error occurred: {str(e)}")
-    
-    return None
+        logger.error(f"Query error: {str(e)}")
+        st.error(f"Error processing query: {str(e)}")
+        return None
 
 def reset_conversation():
-    """Resetta la conversazione"""
+    """Resetta la conversazione e pulisce la cronologia"""
     try:
         response = requests.post(f"{BACKEND_URL}/reset")
-        if response.status_code == 200:
-            st.session_state.chat_history = []
-            logger.info("Conversation reset successful")
-            st.success("Conversation reset successfully")
-        else:
-            logger.warning("Backend reset failed")
-            st.warning("Backend reset failed, but chat history cleared locally")
-            st.session_state.chat_history = []
+        st.session_state.chat_history = []
+        logger.info("Conversation reset successful")
+        st.success("Conversation reset complete")
     except Exception as e:
-        logger.error(f"Error during reset: {str(e)}")
+        logger.error(f"Reset error: {str(e)}")
         st.error(f"Error during reset: {str(e)}")
     st.rerun()
 
-# Sidebar con configurazioni
+# -----------------------------------------------------------------------------
+# Interfaccia Utente
+# -----------------------------------------------------------------------------
+# Header principale
+st.markdown("""
+    <div class="main-header">
+        <div class="main-title">CRM GPT by Customer Knowledge</div>
+        <div class="subtitle">Intelligent Banking Assistant</div>
+    </div>
+""", unsafe_allow_html=True)
+
+# Sidebar per configurazioni
 with st.sidebar:
     st.header("Settings")
     
-    # Selezione modello LLM
-    selected_model = st.selectbox(
-        "Select LLM Model",
-        [
-            "llama3:70b",
-            "mixtral:8x7b",
-            "llama3.1:70b",
-            "mistral-nemo"
-        ],
-        index=["llama3:70b", "mixtral:8x7b", "llama3.1:70b", "mistral-nemo"].index(st.session_state.current_model)
-    )
-    
-    # Informazioni sul modello
-    model_descriptions = {
+    # Configurazione modelli - Personalizzabile
+    models_info = {
         "llama3:70b": "High performance general model",
         "mixtral:8x7b": "Efficient analytical model",
         "llama3.1:70b": "Enhanced reasoning model",
         "mistral-nemo": "Business analytics specialist"
     }
-    st.markdown(f"<div class='model-info'>{model_descriptions[selected_model]}</div>", unsafe_allow_html=True)
     
-    # Selezione modalità query
+    selected_model = st.selectbox(
+        "Select AI Model",
+        list(models_info.keys()),
+        index=list(models_info.keys()).index(st.session_state.current_model)
+    )
+    
+    st.info(models_info[selected_model])
+    
+    # Modalità query
     query_mode = st.selectbox(
-        "Query Mode",
+        "Analysis Mode",
         ["python", "sql"],
         index=0 if st.session_state.query_mode == "python" else 1
     )
     
-    # Applica configurazioni
     if st.button("Apply Settings"):
-        if selected_model != st.session_state.current_model or query_mode != st.session_state.query_mode:
+        try:
             response = requests.post(
                 f"{BACKEND_URL}/config",
                 json={"model": selected_model, "mode": query_mode}
@@ -169,57 +244,55 @@ with st.sidebar:
             if response.status_code == 200:
                 st.session_state.current_model = selected_model
                 st.session_state.query_mode = query_mode
-                st.success("Settings updated successfully")
+                st.success("Settings updated")
                 logger.info(f"Settings updated - Model: {selected_model}, Mode: {query_mode}")
             else:
-                st.error("Failed to update settings")
-                logger.error("Failed to update settings")
+                st.error("Settings update failed")
+        except Exception as e:
+            st.error(f"Error updating settings: {str(e)}")
 
-# Main content
-st.markdown("<h1 class='main-header'>Business Intelligence Assistant</h1>", unsafe_allow_html=True)
-
-# Display current settings
+# Area principale
+# Mostra impostazioni correnti
 st.markdown(f"""
-    <div class='query-mode'>
-        Current Settings:
-        - Model: {st.session_state.current_model}
-        - Mode: {st.session_state.query_mode}
+    <div class="settings-panel">
+        <strong>Current Configuration:</strong><br>
+        Model: {st.session_state.current_model}<br>
+        Mode: {st.session_state.query_mode}
     </div>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# Display chat history
+# Visualizzazione cronologia chat
 for message in st.session_state.chat_history:
-    role = message["role"]
-    content = message["content"]
-    metadata = message.get("metadata", {})
-
-    if role == "user":
-        st.write(f"👤 **You**: {content}")
-    elif role == "assistant":
-        st.write(f"🤖 **Assistant**: {content}")
-        
+    css_class = "user-message" if message["role"] == "user" else "assistant-message"
+    
+    st.markdown(f"""
+        <div class="chat-message {css_class}">
+            <strong>{'👤 You' if message["role"] == "user" else '🤖 Assistant'}</strong><br>
+            {message["content"]}
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Mostra metadati se presenti
+    if message["role"] == "assistant" and "metadata" in message:
+        metadata = message["metadata"]
         if "query" in metadata:
-            with st.expander(f"Show {metadata['query_type'].upper()} Query"):
+            with st.expander(f"Show {metadata['query_type'].upper()} Details"):
                 st.code(metadata["query"], language=metadata["query_type"])
-        
         if "data" in metadata:
             with st.expander("Show Data"):
                 st.dataframe(metadata["data"])
-    
-    elif role == "system":
-        st.write(f"ℹ️ **System**: {content}")
 
 # Input utente
-user_question = st.text_input("Ask your question:", key="user_input")
+user_input = st.text_input("Ask your question:", key="user_input")
 
-# Buttons
+# Pulsanti azione
 col1, col2 = st.columns(2)
 with col1:
     if st.button("Send", type="primary"):
-        if user_question:
-            add_message("user", user_question)
-            with st.spinner("Processing your question..."):
-                response = send_query(user_question)
+        if user_input:
+            add_message("user", user_input)
+            with st.spinner("Processing..."):
+                response = send_query(user_input)
                 if response:
                     add_message(
                         "assistant",
@@ -235,10 +308,12 @@ with col2:
         reset_conversation()
 
 # Footer
-st.markdown("---")
-st.markdown(
-    """<div style='text-align: center; color: #666;'>
-    Powered by Ollama LLMs • SQL and Python Analysis
-    </div>""",
-    unsafe_allow_html=True
-)
+st.markdown("""
+    <div class="footer">
+        <p>Powered by Advanced AI • Customer Knowledge</p>
+    </div>
+""", unsafe_allow_html=True)
+
+if __name__ == "__main__":
+    logger.info("Frontend application started")
+```
