@@ -150,6 +150,7 @@ def add_message(role, content, metadata=None):
     st.session_state.chat_history.append(message)
     logger.info(f"Added {role} message: {content[:100]}...")
 
+# 1. Modificare la configurazione del timeout per allinearla al backend
 def send_query(question):
     """Gestisce l'invio delle query al backend"""
     try:
@@ -166,33 +167,50 @@ def send_query(question):
             "mode": st.session_state.query_mode
         }
         
-        logger.debug(f"Sending request to backend: {payload}")
+        logger.debug(f"[{datetime.now()}] Sending request to backend: {payload}")
         
         response = requests.post(
             f"{BACKEND_URL}/query",
             json=payload,
-            timeout=60
+            timeout=300  # Aumentato a 300 secondi per allinearsi al timeout del backend
         )
         
         if response.status_code != 200:
-            raise Exception(f"Backend returned status code: {response.status_code}")
+            error_content = response.json().get('error', 'Unknown error')
+            raise Exception(f"Backend returned status code: {response.status_code}. Error: {error_content}")
             
         return response.json()
     
+    except requests.Timeout:
+        logger.error(f"[{datetime.now()}] Request timed out after 300 seconds")
+        st.error("Request timed out. Please try again.")
+        return None
+    except requests.ConnectionError:
+        logger.error(f"[{datetime.now()}] Connection error to backend: {BACKEND_URL}")
+        st.error("Could not connect to backend. Please check the connection.")
+        return None
     except Exception as e:
-        logger.error(f"Query error: {str(e)}")
+        logger.error(f"[{datetime.now()}] Query error: {str(e)}")
         st.error(f"Error processing query: {str(e)}")
         return None
 
+# 2. Aggiungere gestione più specifica degli errori nella funzione reset_conversation
 def reset_conversation():
     """Resetta la conversazione e pulisce la cronologia"""
     try:
-        response = requests.post(f"{BACKEND_URL}/reset")
-        st.session_state.chat_history = []
-        logger.info("Conversation reset successful")
-        st.success("Conversation reset complete")
+        response = requests.post(
+            f"{BACKEND_URL}/reset",
+            timeout=30  # Timeout più breve per operazioni semplici
+        )
+        if response.status_code == 200:
+            st.session_state.chat_history = []
+            logger.info(f"[{datetime.now()}] Conversation reset successful")
+            st.success("Conversation reset complete")
+        else:
+            logger.error(f"[{datetime.now()}] Reset failed with status {response.status_code}")
+            st.error("Reset failed. Please try again.")
     except Exception as e:
-        logger.error(f"Reset error: {str(e)}")
+        logger.error(f"[{datetime.now()}] Reset error: {str(e)}")
         st.error(f"Error during reset: {str(e)}")
     st.rerun()
 
