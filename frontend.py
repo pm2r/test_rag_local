@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # Configurazione Connessione Backend
 # -----------------------------------------------------------------------------
 # Sostituire con il tuo URL ngrok
-BACKEND_URL = st.secrets.get("BACKEND_URL", "https://97b6-35-204-124-78.ngrok-free.app" )
+BACKEND_URL = st.secrets.get("BACKEND_URL", "https://af27-34-147-36-231.ngrok-free.app" )
 
 # -----------------------------------------------------------------------------
 # Configurazione Pagina e Stile
