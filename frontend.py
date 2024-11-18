@@ -248,13 +248,6 @@ with st.sidebar:
     # Modalità query
     query_mode = st.selectbox(
         "Analysis Mode",
-        ["python", "sql"],
-        index=0 if st.session_state.query_mode == "python" else 1
-    )
-
-    # Aggiungi selettore modalità query dopo quello esistente
-    query_mode = st.selectbox(
-        "Analysis Mode",
         ["python", "sql", "narrative"],  # Aggiunto "narrative"
         index=0 if st.session_state.query_mode == "python" else (
             1 if st.session_state.query_mode == "sql" else 2)
