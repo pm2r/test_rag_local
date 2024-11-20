@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 # Configurazione Connessione Backend
 # -----------------------------------------------------------------------------
 # Sostituire con il tuo URL ngrok
-BACKEND_URL = st.secrets.get("BACKEND_URL", "https://7fcf-34-90-208-214.ngrok-free.app" )
+BACKEND_URL = st.secrets.get("BACKEND_URL", "https://38c9-34-32-198-110.ngrok-free.app" )
 
 # -----------------------------------------------------------------------------
 # Configurazione Pagina e Stile
@@ -248,7 +248,7 @@ with st.sidebar:
     # Modalità query
     query_mode = st.selectbox(
         "Analysis Mode",
-        ["python", "sql", "narrative"],  # Aggiunto "narrative"
+        ["python", "sql", "narrative"],  
         index=0 if st.session_state.query_mode == "python" else (
             1 if st.session_state.query_mode == "sql" else 2)
     )
